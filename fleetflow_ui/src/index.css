@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg: #070c12;
+    --panel: #0b1520;
+    --border: #1a3050;
+    --accent: #00c8ff;
+    --accent2: #ff6b2b;
+    --accent3: #39ff8f;
+    --accent4: #ffd93d;
+    --muted: #4a6680;
+    --text: #c8dff0;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Blueprint grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(26,48,80,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(26,48,80,0.5) 1px, transparent 1px),
+      linear-gradient(rgba(0,200,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.02) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  #root { position: relative; z-index: 1; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--panel); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+}
+
+@layer components {
+  .ff-panel {
+    @apply bg-panel border border-border rounded-sm relative overflow-hidden;
+  }
+
+  .ff-btn {
+    @apply font-display font-bold uppercase tracking-widest text-xs px-5 py-2.5
+           rounded-sm transition-all duration-200 cursor-pointer border
+           flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .ff-btn-primary {
+    @apply ff-btn bg-accent/10 border-accent/40 text-accent
+           hover:bg-accent hover:text-bg hover:border-accent;
+  }
+
+  .ff-btn-danger {
+    @apply ff-btn bg-accent2/10 border-accent2/40 text-accent2
+           hover:bg-accent2 hover:text-white hover:border-accent2;
+  }
+
+  .ff-btn-ghost {
+    @apply ff-btn bg-transparent border-border text-muted
+           hover:border-textBase hover:text-textBase;
+  }
+
+  .ff-btn-success {
+    @apply ff-btn bg-accent3/10 border-accent3/40 text-accent3
+           hover:bg-accent3 hover:text-bg hover:border-accent3;
+  }
+
+  .ff-input {
+    @apply w-full bg-bg border border-border rounded-sm px-3 py-2.5
+           font-mono text-sm text-textBase placeholder-muted
+           focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/20
+           transition-colors;
+  }
+
+  .ff-label {
+    @apply block font-display font-bold uppercase tracking-widest text-xs text-muted mb-1.5;
+  }
+
+  .ff-select {
+    @apply ff-input appearance-none cursor-pointer;
+  }
+
+  .status-pill {
+    @apply font-mono text-xs px-2.5 py-0.5 rounded-sm border font-semibold tracking-wider;
+  }
+
+  .status-available   { @apply status-pill bg-accent3/10 text-accent3 border-accent3/30; }
+  .status-ontrip      { @apply status-pill bg-accent/10  text-accent  border-accent/30; }
+  .status-inshop      { @apply status-pill bg-accent4/10 text-accent4 border-accent4/30; }
+  .status-retired     { @apply status-pill bg-muted/20   text-muted   border-muted/30; }
+  .status-onduty      { @apply status-pill bg-accent/10  text-accent  border-accent/30; }
+  .status-offduty     { @apply status-pill bg-accent3/10 text-accent3 border-accent3/30; }
+  .status-suspended   { @apply status-pill bg-accent2/10 text-accent2 border-accent2/30; }
+  .status-completed   { @apply status-pill bg-accent3/10 text-accent3 border-accent3/30; }
+  .status-dispatched  { @apply status-pill bg-accent/10  text-accent  border-accent/30; }
+  .status-draft       { @apply status-pill bg-muted/20   text-muted   border-muted/30; }
+  .status-cancelled   { @apply status-pill bg-accent2/10 text-accent2 border-accent2/30; }
+
+  .table-row {
+    @apply border-b border-border/50 hover:bg-accent/3 transition-colors;
+  }
+
+  .table-cell {
+    @apply px-4 py-3 font-mono text-xs text-textBase;
+  }
+
+  .table-head {
+    @apply px-4 py-3 font-display font-bold uppercase tracking-widest text-xs text-muted
+           bg-black/20 border-b border-border text-left;
+  }
+
+  .kpi-card {
+    @apply ff-panel p-5 animate-fade-up;
+  }
+
+  .section-label {
+    @apply font-display font-bold uppercase tracking-widest text-xs text-accent
+           flex items-center gap-3 mb-5;
+  }
+
+  .section-label::after {
+    content: '';
+    @apply flex-1 h-px bg-gradient-to-r from-border to-transparent;
+  }
+}

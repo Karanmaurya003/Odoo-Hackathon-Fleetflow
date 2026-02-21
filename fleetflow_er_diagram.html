@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FleetFlow — ER Diagram</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:        #080d14;
+    --grid:      #0e1a28;
+    --panel:     #0b1520;
+    --border:    #1a3050;
+    --accent:    #00c8ff;
+    --accent2:   #ff6b2b;
+    --accent3:   #39ff8f;
+    --accent4:   #ffd93d;
+    --text:      #c8dff0;
+    --muted:     #4a6680;
+    --pk:        #ffd93d;
+    --fk:        #ff6b2b;
+    --col:       #8ab8d8;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Barlow Condensed', sans-serif;
+    --body:      'Barlow', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── blueprint grid background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+      linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px);
+    background-size: 80px 80px, 80px 80px, 20px 20px, 20px 20px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── scanline overlay ── */
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* ── HEADER ── */
+  .header {
+    text-align: center;
+    margin-bottom: 56px;
+    animation: fadeDown 0.8s ease both;
+  }
+  .header .badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 4px 16px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .header h1 {
+    font-family: var(--sans);
+    font-weight: 900;
+    font-size: clamp(36px, 6vw, 72px);
+    letter-spacing: -1px;
+    line-height: 1;
+    color: #fff;
+    text-transform: uppercase;
+  }
+  .header h1 span { color: var(--accent); }
+  .header p {
+    margin-top: 12px;
+    font-size: 15px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── DIAGRAM CANVAS ── */
+  .diagram-wrap {
+    position: relative;
+    background: rgba(11,21,32,0.85);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 48px 32px;
+    margin-bottom: 56px;
+    overflow: visible;
+    animation: fadeUp 0.9s ease 0.2s both;
+  }
+  .diagram-wrap::before {
+    content: 'ER — ENTITY RELATIONSHIP DIAGRAM';
+    position: absolute;
+    top: -1px; left: 32px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    background: var(--bg);
+    padding: 0 12px;
+    transform: translateY(-50%);
+  }
+  .diagram-wrap::after {
+    content: 'v2.1 // FLEETFLOW SCHEMA';
+    position: absolute;
+    bottom: -1px; right: 32px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 0 12px;
+    transform: translateY(50%);
+  }
+
+  /* ── SVG container ── */
+  .svg-wrap {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+  svg {
+    display: block;
+    min-width: 900px;
+    width: 100%;
+    height: auto;
+  }
+
+  /* ── TABLE CARDS (SVG foreignObject) ── */
+  .er-table {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+    cursor: default;
+  }
+  .er-table:hover { box-shadow: 0 0 24px rgba(0,200,255,0.18); }
+
+  .tbl-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tbl-head .icon {
+    width: 22px; height: 22px;
+    border-radius: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .tbl-head .tname {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+
+  .col-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-bottom: 1px solid rgba(26,48,80,0.5);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    transition: background 0.15s;
+  }
+  .col-row:hover { background: rgba(0,200,255,0.05); }
+  .col-row:last-child { border-bottom: none; }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 1px 5px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .tag.pk  { background: rgba(255,217,61,0.15); color: var(--pk);  border: 1px solid rgba(255,217,61,0.3); }
+  .tag.fk  { background: rgba(255,107,43,0.15); color: var(--fk);  border: 1px solid rgba(255,107,43,0.3); }
+  .tag.col { background: rgba(138,184,216,0.08); color: var(--col); border: 1px solid rgba(138,184,216,0.15); }
+
+  .col-name { color: var(--text); }
+  .col-type { color: var(--muted); margin-left: auto; font-size: 10px; }
+
+  /* Table accent colors */
+  .t-users     .tbl-head { background: rgba(0,200,255,0.08);  border-color: rgba(0,200,255,0.3); }
+  .t-users     .icon      { background: rgba(0,200,255,0.2); color: var(--accent); }
+  .t-vehicles  .tbl-head { background: rgba(57,255,143,0.08); border-color: rgba(57,255,143,0.3); }
+  .t-vehicles  .icon      { background: rgba(57,255,143,0.2); color: var(--accent3); }
+  .t-drivers   .tbl-head { background: rgba(255,217,61,0.08); border-color: rgba(255,217,61,0.3); }
+  .t-drivers   .icon      { background: rgba(255,217,61,0.2); color: var(--accent4); }
+  .t-trips     .tbl-head { background: rgba(255,107,43,0.08); border-color: rgba(255,107,43,0.3); }
+  .t-trips     .icon      { background: rgba(255,107,43,0.2); color: var(--accent2); }
+  .t-fuel      .tbl-head { background: rgba(176,107,255,0.08);border-color: rgba(176,107,255,0.3); }
+  .t-fuel      .icon      { background: rgba(176,107,255,0.2); color: #b06bff; }
+  .t-maint     .tbl-head { background: rgba(255,70,70,0.08);  border-color: rgba(255,70,70,0.3); }
+  .t-maint     .icon      { background: rgba(255,70,70,0.2);  color: #ff4646; }
+
+  /* ── RELATIONSHIP LINES ── */
+  .rel-line {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-dasharray: 6 3;
+    animation: dash 2s linear infinite;
+  }
+  .rel-solid {
+    fill: none;
+    stroke-width: 2;
+    marker-end: url(#arrow);
+  }
+  @keyframes dash { to { stroke-dashoffset: -18; } }
+
+  /* ── RELATIONSHIP SECTION ── */
+  .section-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: fadeUp 0.8s ease 0.4s both;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  .rel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    margin-bottom: 56px;
+  }
+
+  .rel-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    animation: fadeUp 0.7s ease both;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .rel-card:hover { transform: translateY(-2px); }
+  .rel-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .rel-card.c1::before { background: var(--accent3); }
+  .rel-card.c2::before { background: var(--accent4); }
+  .rel-card.c3::before { background: #b06bff; }
+  .rel-card.c4::before { background: #ff4646; }
+  .rel-card:hover.c1 { border-color: rgba(57,255,143,0.35); }
+  .rel-card:hover.c2 { border-color: rgba(255,217,61,0.35); }
+  .rel-card:hover.c3 { border-color: rgba(176,107,255,0.35); }
+  .rel-card:hover.c4 { border-color: rgba(255,70,70,0.35); }
+
+  .rel-card .rel-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+  .rel-card .rel-title {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 18px;
+    color: #fff;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .rel-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  .rel-badge.one-many { background: rgba(0,200,255,0.12); color: var(--accent); border: 1px solid rgba(0,200,255,0.3); }
+
+  .rel-arrow-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 10px 14px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .entity-pill {
+    padding: 4px 12px;
+    border-radius: 2px;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .ep-v { background: rgba(57,255,143,0.15); color: var(--accent3); border: 1px solid rgba(57,255,143,0.3); }
+  .ep-d { background: rgba(255,217,61,0.15); color: var(--accent4); border: 1px solid rgba(255,217,61,0.3); }
+  .ep-t { background: rgba(255,107,43,0.15); color: var(--accent2); border: 1px solid rgba(255,107,43,0.3); }
+  .ep-f { background: rgba(176,107,255,0.15); color: #b06bff;       border: 1px solid rgba(176,107,255,0.3); }
+  .ep-m { background: rgba(255,70,70,0.15); color: #ff4646;         border: 1px solid rgba(255,70,70,0.3); }
+
+  .arrow-symbol { color: var(--accent); font-size: 18px; }
+  .card-n { color: var(--accent); font-weight: 700; }
+
+  .rel-desc {
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+
+  .rel-rule {
+    background: rgba(0,200,255,0.04);
+    border: 1px solid rgba(0,200,255,0.1);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    line-height: 1.7;
+  }
+
+  /* ── CARDINALITY TABLE ── */
+  .card-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    animation: fadeUp 0.8s ease 0.6s both;
+  }
+  .card-table th {
+    font-family: var(--sans);
+    font-weight: 700;
+    letter-spacing: 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+  .card-table td {
+    padding: 11px 16px;
+    border-bottom: 1px solid rgba(26,48,80,0.5);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--col);
+    vertical-align: middle;
+  }
+  .card-table tr:last-child td { border-bottom: none; }
+  .card-table tr:hover td { background: rgba(0,200,255,0.03); }
+  .card-table td:first-child { color: #fff; font-weight: 600; }
+  .card-table td:nth-child(3) { color: var(--accent); }
+
+  .table-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 56px;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-bottom: 56px;
+    animation: fadeUp 0.8s ease 0.5s both;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--muted);
+  }
+  .lg-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+  /* ── CONSTRAINT SECTION ── */
+  .constraint-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 56px;
+  }
+  .constraint-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 16px 18px;
+    animation: fadeUp 0.8s ease 0.7s both;
+  }
+  .constraint-card .c-head {
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .c-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .constraint-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .constraint-card li {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--muted);
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .constraint-card li::before {
+    content: '›';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+
+  @keyframes fadeDown { from { opacity:0; transform: translateY(-20px); } to { opacity:1; transform: none; } }
+  @keyframes fadeUp   { from { opacity:0; transform: translateY(20px);  } to { opacity:1; transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="badge">DATABASE ARCHITECTURE</div>
+    <h1>Fleet<span>Flow</span> ER Diagram</h1>
+    <p>Entity-Relationship Schema · 6 Tables · 4 One-to-Many Relationships · MySQL 8+</p>
+  </div>
+
+  <!-- ER DIAGRAM SVG -->
+  <div class="diagram-wrap">
+    <div class="svg-wrap">
+    <svg viewBox="0 0 1200 780" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Arrow markers -->
+        <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#39ff8f"/>
+        </marker>
+        <marker id="arrow-yellow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#ffd93d"/>
+        </marker>
+        <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#b06bff"/>
+        </marker>
+        <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L8,3 z" fill="#ff4646"/>
+        </marker>
+        <marker id="circle-g" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="3" fill="none" stroke="#39ff8f" stroke-width="1.5"/>
+        </marker>
+        <marker id="circle-y" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="3" fill="none" stroke="#ffd93d" stroke-width="1.5"/>
+        </marker>
+        <marker id="circle-p" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="3" fill="none" stroke="#b06bff" stroke-width="1.5"/>
+        </marker>
+        <marker id="circle-r" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <circle cx="4" cy="4" r="3" fill="none" stroke="#ff4646" stroke-width="1.5"/>
+        </marker>
+        <!-- Glow filter -->
+        <filter id="glow-b" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-g" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2.5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- ══════════════════════════════════════
+           RELATIONSHIP LINES (drawn UNDER tables)
+           ══════════════════════════════════════ -->
+
+      <!-- Vehicles → Trips (green, right side of vehicles, left of trips) -->
+      <g filter="url(#glow-g)">
+        <path class="rel-line" d="M 440,270 C 530,270 530,345 620,345"
+              stroke="#39ff8f" marker-start="url(#circle-g)" marker-end="url(#arrow-green)"/>
+        <!-- 1 label -->
+        <text x="452" y="262" font-family="'Share Tech Mono'" font-size="11" fill="#39ff8f" opacity="0.9">1</text>
+        <!-- N label -->
+        <text x="600" y="338" font-family="'Share Tech Mono'" font-size="11" fill="#39ff8f" opacity="0.9">N</text>
+      </g>
+
+      <!-- Drivers → Trips (yellow, right side of drivers, left of trips) -->
+      <g filter="url(#glow-g)">
+        <path class="rel-line" d="M 440,510 C 540,510 540,420 620,400"
+              stroke="#ffd93d" marker-start="url(#circle-y)" marker-end="url(#arrow-yellow)"/>
+        <text x="452" y="502" font-family="'Share Tech Mono'" font-size="11" fill="#ffd93d" opacity="0.9">1</text>
+        <text x="603" y="414" font-family="'Share Tech Mono'" font-size="11" fill="#ffd93d" opacity="0.9">N</text>
+      </g>
+
+      <!-- Vehicles → FuelLogs (purple) -->
+      <g filter="url(#glow-g)">
+        <path class="rel-line" d="M 310,340 C 310,480 600,560 780,560"
+              stroke="#b06bff" marker-start="url(#circle-p)" marker-end="url(#arrow-purple)"/>
+        <text x="316" y="348" font-family="'Share Tech Mono'" font-size="11" fill="#b06bff" opacity="0.9">1</text>
+        <text x="762" y="553" font-family="'Share Tech Mono'" font-size="11" fill="#b06bff" opacity="0.9">N</text>
+      </g>
+
+      <!-- Vehicles → Maintenance (red) -->
+      <g filter="url(#glow-g)">
+        <path class="rel-line" d="M 330,340 C 330,620 860,680 970,680"
+              stroke="#ff4646" marker-start="url(#circle-r)" marker-end="url(#arrow-red)"/>
+        <text x="338" y="356" font-family="'Share Tech Mono'" font-size="11" fill="#ff4646" opacity="0.9">1</text>
+        <text x="950" y="673" font-family="'Share Tech Mono'" font-size="11" fill="#ff4646" opacity="0.9">N</text>
+      </g>
+
+      <!-- ══════════════════════════════════════
+           TABLE: USERS  (top-left)
+           ══════════════════════════════════════ -->
+      <foreignObject x="30" y="30" width="240" height="210">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-users">
+          <div class="tbl-head">
+            <div class="icon">👤</div>
+            <span class="tname">Users</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">name</span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">email</span><span class="col-type">VARCHAR UQ</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">password_hash</span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">role</span><span class="col-type">VARCHAR</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- ══════════════════════════════════════
+           TABLE: VEHICLES  (center-left)
+           ══════════════════════════════════════ -->
+      <foreignObject x="140" y="190" width="300" height="260">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-vehicles">
+          <div class="tbl-head">
+            <div class="icon">🚛</div>
+            <span class="tname">Vehicles</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">name</span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">license_plate</span><span class="col-type">VARCHAR UQ</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">max_capacity</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">odometer</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">acquisition_cost</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">status</span><span class="col-type">ENUM</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- ══════════════════════════════════════
+           TABLE: DRIVERS  (bottom-left)
+           ══════════════════════════════════════ -->
+      <foreignObject x="140" y="430" width="300" height="235">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-drivers">
+          <div class="tbl-head">
+            <div class="icon">🧑‍✈️</div>
+            <span class="tname">Drivers</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">name</span><span class="col-name"></span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">license_type</span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">license_expiry</span><span class="col-type">DATE</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">status</span><span class="col-type">ENUM</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">safety_score</span><span class="col-type">FLOAT</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- ══════════════════════════════════════
+           TABLE: TRIPS  (center)
+           ══════════════════════════════════════ -->
+      <foreignObject x="618" y="290" width="300" height="290">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-trips">
+          <div class="tbl-head">
+            <div class="icon">🗺️</div>
+            <span class="tname">Trips</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag fk">FK</span><span class="col-name">vehicle_id</span><span class="col-type">→ vehicles</span></div>
+          <div class="col-row"><span class="tag fk">FK</span><span class="col-name">driver_id</span><span class="col-type">→ drivers</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">cargo_weight</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">revenue</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">start_odometer</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">end_odometer</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">status</span><span class="col-type">ENUM</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">start_date</span><span class="col-type">DATE</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">end_date</span><span class="col-type">DATE</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- ══════════════════════════════════════
+           TABLE: FUEL_LOGS  (right-center)
+           ══════════════════════════════════════ -->
+      <foreignObject x="780" y="500" width="250" height="195">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-fuel">
+          <div class="tbl-head">
+            <div class="icon">⛽</div>
+            <span class="tname">Fuel_Logs</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag fk">FK</span><span class="col-name">vehicle_id</span><span class="col-type">→ vehicles</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">liters</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">cost</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">date</span><span class="col-type">DATE</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- ══════════════════════════════════════
+           TABLE: MAINTENANCE  (far right)
+           ══════════════════════════════════════ -->
+      <foreignObject x="970" y="630" width="220" height="172">
+        <div xmlns="http://www.w3.org/1999/xhtml" class="er-table t-maint">
+          <div class="tbl-head">
+            <div class="icon">🔧</div>
+            <span class="tname">Maintenance</span>
+          </div>
+          <div class="col-row"><span class="tag pk">PK</span><span class="col-name">id</span><span class="col-type">INT</span></div>
+          <div class="col-row"><span class="tag fk">FK</span><span class="col-name">vehicle_id</span><span class="col-type">→ vehicles</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">description</span><span class="col-type">VARCHAR</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">cost</span><span class="col-type">FLOAT</span></div>
+          <div class="col-row"><span class="tag col">—</span><span class="col-name">date</span><span class="col-type">DATE</span></div>
+        </div>
+      </foreignObject>
+
+      <!-- Relationship labels mid-path -->
+      <text x="520" y="292" font-family="'Share Tech Mono'" font-size="10" fill="#39ff8f" opacity="0.7">HAS TRIPS</text>
+      <text x="490" y="482" font-family="'Share Tech Mono'" font-size="10" fill="#ffd93d" opacity="0.7">DRIVES</text>
+      <text x="440" y="498" font-family="'Share Tech Mono'" font-size="10" fill="#b06bff" opacity="0.7">FUELED AT</text>
+      <text x="530" y="652" font-family="'Share Tech Mono'" font-size="10" fill="#ff4646" opacity="0.7">SERVICED AT</text>
+    </svg>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="section-title">Legend & Notation</div>
+  <div class="legend">
+    <div class="legend-item"><div class="lg-dot" style="background:#ffd93d"></div> PK — Primary Key</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#ff6b2b"></div> FK — Foreign Key</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#8ab8d8"></div> COL — Column</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#39ff8f"></div> Vehicles → Trips</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#ffd93d"></div> Drivers → Trips</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#b06bff"></div> Vehicles → FuelLogs</div>
+    <div class="legend-item"><div class="lg-dot" style="background:#ff4646"></div> Vehicles → Maintenance</div>
+    <div class="legend-item">○──▷ = One-to-Many (1:N)</div>
+    <div class="legend-item">UQ = Unique Constraint</div>
+  </div>
+
+  <!-- RELATIONSHIP CARDS -->
+  <div class="section-title">Relationships Explained</div>
+  <div class="rel-grid">
+
+    <!-- REL 1: Vehicles → Trips -->
+    <div class="rel-card c1" style="animation-delay:0.1s">
+      <div class="rel-num">REL — 01 / 04</div>
+      <div class="rel-title">
+        Vehicles ↔ Trips
+        <span class="rel-badge one-many">1 : N</span>
+      </div>
+      <div class="rel-arrow-row">
+        <span class="entity-pill ep-v">VEHICLES</span>
+        <span class="arrow-symbol">──────▷</span>
+        <span class="entity-pill ep-t">TRIPS</span>
+      </div>
+      <div class="rel-desc">
+        A single vehicle can be assigned to <strong style="color:#fff">many trips</strong> over its lifetime — sequentially, never concurrently. Each trip record holds exactly one <code style="color:#39ff8f">vehicle_id</code> foreign key, pointing back to the parent vehicle.
+      </div>
+      <div class="rel-rule">
+        vehicles.id (PK)  ──1──▷──N──  trips.vehicle_id (FK)<br>
+        ON DELETE RESTRICT  |  NOT NULL<br>
+        Rule: vehicle.status = 'Available' to create trip<br>
+        Rule: vehicle.status → 'OnTrip' when dispatched
+      </div>
+    </div>
+
+    <!-- REL 2: Drivers → Trips -->
+    <div class="rel-card c2" style="animation-delay:0.2s">
+      <div class="rel-num">REL — 02 / 04</div>
+      <div class="rel-title">
+        Drivers ↔ Trips
+        <span class="rel-badge one-many">1 : N</span>
+      </div>
+      <div class="rel-arrow-row">
+        <span class="entity-pill ep-d">DRIVERS</span>
+        <span class="arrow-symbol">──────▷</span>
+        <span class="entity-pill ep-t">TRIPS</span>
+      </div>
+      <div class="rel-desc">
+        One driver can complete <strong style="color:#fff">many trips</strong> across their career. Each trip is assigned to exactly one driver via <code style="color:#ffd93d">driver_id</code>. The system enforces license validity and duty status before any assignment.
+      </div>
+      <div class="rel-rule">
+        drivers.id (PK)  ──1──▷──N──  trips.driver_id (FK)<br>
+        ON DELETE RESTRICT  |  NOT NULL<br>
+        Rule: driver.status = 'OffDuty' to be assigned<br>
+        Rule: driver.license_expiry &gt; TODAY() required
+      </div>
+    </div>
+
+    <!-- REL 3: Vehicles → FuelLogs -->
+    <div class="rel-card c3" style="animation-delay:0.3s">
+      <div class="rel-num">REL — 03 / 04</div>
+      <div class="rel-title">
+        Vehicles ↔ Fuel Logs
+        <span class="rel-badge one-many">1 : N</span>
+      </div>
+      <div class="rel-arrow-row">
+        <span class="entity-pill ep-v">VEHICLES</span>
+        <span class="arrow-symbol">──────▷</span>
+        <span class="entity-pill ep-f">FUEL_LOGS</span>
+      </div>
+      <div class="rel-desc">
+        Every refuelling event is logged against a specific vehicle. One vehicle accumulates <strong style="color:#fff">many fuel records</strong> over time. These records power the cost-per-km and fuel efficiency analytics calculations.
+      </div>
+      <div class="rel-rule">
+        vehicles.id (PK)  ──1──▷──N──  fuel_logs.vehicle_id (FK)<br>
+        ON DELETE RESTRICT  |  NOT NULL<br>
+        Analytics: fuel_efficiency = Σkm / Σliters<br>
+        Analytics: cost_per_km uses Σfuel_cost + Σmaint_cost
+      </div>
+    </div>
+
+    <!-- REL 4: Vehicles → Maintenance -->
+    <div class="rel-card c4" style="animation-delay:0.4s">
+      <div class="rel-num">REL — 04 / 04</div>
+      <div class="rel-title">
+        Vehicles ↔ Maintenance
+        <span class="rel-badge one-many">1 : N</span>
+      </div>
+      <div class="rel-arrow-row">
+        <span class="entity-pill ep-v">VEHICLES</span>
+        <span class="arrow-symbol">──────▷</span>
+        <span class="entity-pill ep-m">MAINTENANCE</span>
+      </div>
+      <div class="rel-desc">
+        A vehicle can have <strong style="color:#fff">many maintenance records</strong> — oil changes, tyre replacements, inspections. Creating any maintenance record automatically locks the vehicle with status <code style="color:#ff4646">'InShop'</code>, removing it from dispatch selection.
+      </div>
+      <div class="rel-rule">
+        vehicles.id (PK)  ──1──▷──N──  maintenance.vehicle_id (FK)<br>
+        ON DELETE RESTRICT  |  NOT NULL<br>
+        Side-effect: vehicle.status → 'InShop' on INSERT<br>
+        Side-effect: vehicle.status → 'Available' on complete
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CARDINALITY TABLE -->
+  <div class="section-title">Cardinality Summary Table</div>
+  <div class="table-wrap" style="animation: fadeUp 0.8s ease 0.5s both; margin-bottom: 56px;">
+    <table class="card-table">
+      <thead>
+        <tr>
+          <th>Relationship</th>
+          <th>Parent Table</th>
+          <th>Cardinality</th>
+          <th>Child Table</th>
+          <th>Foreign Key</th>
+          <th>On Delete</th>
+          <th>Business Rule Triggered</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Vehicles → Trips</td>
+          <td><span class="entity-pill ep-v" style="font-size:11px">vehicles</span></td>
+          <td>1 : N</td>
+          <td><span class="entity-pill ep-t" style="font-size:11px">trips</span></td>
+          <td>trips.vehicle_id</td>
+          <td>RESTRICT</td>
+          <td>status: Available → OnTrip → Available</td>
+        </tr>
+        <tr>
+          <td>Drivers → Trips</td>
+          <td><span class="entity-pill ep-d" style="font-size:11px">drivers</span></td>
+          <td>1 : N</td>
+          <td><span class="entity-pill ep-t" style="font-size:11px">trips</span></td>
+          <td>trips.driver_id</td>
+          <td>RESTRICT</td>
+          <td>status: OffDuty → OnDuty → OffDuty</td>
+        </tr>
+        <tr>
+          <td>Vehicles → FuelLogs</td>
+          <td><span class="entity-pill ep-v" style="font-size:11px">vehicles</span></td>
+          <td>1 : N</td>
+          <td><span class="entity-pill ep-f" style="font-size:11px">fuel_logs</span></td>
+          <td>fuel_logs.vehicle_id</td>
+          <td>RESTRICT</td>
+          <td>Feeds cost_per_km &amp; fuel efficiency analytics</td>
+        </tr>
+        <tr>
+          <td>Vehicles → Maintenance</td>
+          <td><span class="entity-pill ep-v" style="font-size:11px">vehicles</span></td>
+          <td>1 : N</td>
+          <td><span class="entity-pill ep-m" style="font-size:11px">maintenance</span></td>
+          <td>maintenance.vehicle_id</td>
+          <td>RESTRICT</td>
+          <td>status: → InShop on INSERT; → Available on complete</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- CONSTRAINTS & RULES -->
+  <div class="section-title">Integrity Constraints & Business Rules</div>
+  <div class="constraint-grid">
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#39ff8f"></div>Vehicle Constraints</div>
+      <ul>
+        <li>license_plate is globally UNIQUE</li>
+        <li>status ∈ {Available, OnTrip, InShop, Retired}</li>
+        <li>Only status=Available vehicles are dispatch-eligible</li>
+        <li>status=Retired vehicles cannot be deleted if trips exist</li>
+        <li>odometer is updated to end_odometer on trip completion</li>
+      </ul>
+    </div>
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#ffd93d"></div>Driver Constraints</div>
+      <ul>
+        <li>status ∈ {OffDuty, OnDuty, Suspended}</li>
+        <li>Only status=OffDuty drivers are dispatch-eligible</li>
+        <li>license_expiry must be &gt; CURDATE() to be assigned</li>
+        <li>Suspended drivers cannot be assigned to any trip</li>
+        <li>safety_score tracked per driver (0–100 scale)</li>
+      </ul>
+    </div>
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#ff6b2b"></div>Trip Constraints</div>
+      <ul>
+        <li>status ∈ {Draft, Dispatched, Completed, Cancelled}</li>
+        <li>cargo_weight must be ≤ vehicle.max_capacity</li>
+        <li>end_odometer must be &gt; start_odometer</li>
+        <li>Both vehicle_id and driver_id are NOT NULL</li>
+        <li>revenue is summed per vehicle for ROI analytics</li>
+      </ul>
+    </div>
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#00c8ff"></div>Referential Integrity</div>
+      <ul>
+        <li>All FK references use ON DELETE RESTRICT</li>
+        <li>Vehicles with trips cannot be hard-deleted</li>
+        <li>Drivers with trips cannot be hard-deleted</li>
+        <li>email in users table is UNIQUE indexed</li>
+        <li>All monetary values stored as FLOAT (precision aware)</li>
+      </ul>
+    </div>
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#b06bff"></div>FuelLog Rules</div>
+      <ul>
+        <li>vehicle_id FK is NOT NULL — orphan logs disallowed</li>
+        <li>liters and cost must be &gt; 0 (application-level)</li>
+        <li>date defaults to CURDATE() if not supplied</li>
+        <li>Aggregated into monthly summaries for reporting</li>
+        <li>Used in: fuel_efficiency, cost_per_km, ROI</li>
+      </ul>
+    </div>
+
+    <div class="constraint-card">
+      <div class="c-head"><div class="c-dot" style="background:#ff4646"></div>Maintenance Rules</div>
+      <ul>
+        <li>INSERT auto-sets vehicle.status = 'InShop'</li>
+        <li>Cannot add maintenance to OnTrip vehicles</li>
+        <li>Cannot add maintenance to Retired vehicles</li>
+        <li>Complete action checks for other pending records first</li>
+        <li>cost aggregated into operational cost analytics</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div style="text-align:center; font-family: 'Share Tech Mono', monospace; font-size:11px; color:#1a3050; letter-spacing:2px; padding-top:24px; border-top:1px solid #0e1a28;">
+    FLEETFLOW DATABASE SCHEMA // ER DIAGRAM // GENERATED 2026 // MYSQL 8+ COMPATIBLE
+  </div>
+
+</div>
+</body>
+</html>
