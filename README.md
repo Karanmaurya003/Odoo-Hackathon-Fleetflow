@@ -59,6 +59,21 @@ The UI is a futuristic dashboard that adapts its features based on the logged-in
 
 ---
 
+
+## 🔐 Role-Based Access Control (RBAC)
+FleetFlow adapts the UI based on who is logged in:
+
+* **Dispatcher**: Manage trips, assign drivers, and check vehicle availability.
+* **Fleet Manager**: Full access to assets, staff, and maintenance schedules.
+* **Safety Officer**: Monitor license expiries, safety scores, and incidents.
+* **Financial Analyst**: Access deep ROI analytics, fuel spend, and cost breakdowns.
+
+## 🛠️ Tech Stack
+* **Frontend**: React, Tailwind CSS, Recharts (for data visualization).
+* **Backend**: Python Flask, SQLAlchemy (ORM).
+* **Database**: MySQL.
+* **Auth**: Flask-Login with Session Management.
+---
 ## 🏗️ Project Structure
 ```text
 fleetflow/
